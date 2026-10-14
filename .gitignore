@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Environments & secrets
+.venv/
+venv/
+.env
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Runtime data (indexes, downloaded models, sample videos)
+data/
+*.faiss
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
