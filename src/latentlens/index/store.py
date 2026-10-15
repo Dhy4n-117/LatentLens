@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
-import tempfile
 from collections.abc import Callable, Sequence
 from dataclasses import asdict
 from pathlib import Path
@@ -14,6 +12,7 @@ import faiss
 import numpy as np
 
 from latentlens.types import ClipSpan, SearchHit
+from latentlens.utils import atomic_write
 
 SCHEMA_VERSION = 1
 INDEX_FILE = "index.faiss"
@@ -120,8 +119,8 @@ class VectorStore:
             "clips": [{"id": i, **asdict(s)} for i, s in sorted(self._spans.items())],
         }
         # Serialise via bytes: faiss.write_index can't handle non-ASCII paths on Windows.
-        _atomic_write(directory / INDEX_FILE, faiss.serialize_index(self._index).tobytes())
-        _atomic_write(directory / META_FILE, json.dumps(meta, indent=2).encode("utf-8"))
+        atomic_write(directory / INDEX_FILE, faiss.serialize_index(self._index).tobytes())
+        atomic_write(directory / META_FILE, json.dumps(meta, indent=2).encode("utf-8"))
 
     @classmethod
     def load(cls, directory: str | Path) -> VectorStore:
@@ -155,15 +154,3 @@ class VectorStore:
                 f"current encoder is {encoder_name} (dim={dim}). Use a different data dir."
             )
         return store
-
-
-def _atomic_write(path: Path, data: bytes) -> None:
-    """Write-then-rename so a crash never leaves a half-written index behind."""
-    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
-    try:
-        with os.fdopen(fd, "wb") as fh:
-            fh.write(data)
-        os.replace(tmp, path)
-    except BaseException:
-        Path(tmp).unlink(missing_ok=True)
-        raise
