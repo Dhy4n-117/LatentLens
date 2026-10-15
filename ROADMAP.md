@@ -13,7 +13,7 @@ flowchart LR
 | Phase | Theme | Status |
 |------|-------|--------|
 | 1 | Visual memory core | ✅ Done |
-| 2 | Language bridge | ⏳ Next |
+| 2 | Language bridge | 🚧 In progress (~10%) |
 | 3 | Grounded video QA + UI | 🔜 |
 | 4 | Evaluation & production | 🔜 |
 
@@ -30,13 +30,26 @@ Goal: turn any video library into a searchable latent memory.
 - Moment-to-moment search ("find scenes that look/move like this one")
 - Typer + Rich CLI, pydantic settings, pytest suite with a fake encoder (no GPU needed)
 
-## Phase 2 — Language Bridge
+## Phase 2 — Language Bridge 🚧
 Goal: let *text* reach the V-JEPA latent space (V-JEPA has no text tower).
 
-- Gemini Flash (free tier) keyframe captioning with on-disk cache + rate limiter
-- Text embeddings (`sentence-transformers`, free & local) for captions and queries
-- Train a lightweight **projection head** (contrastive / InfoNCE) aligning V-JEPA ↔ text space on an MSR-VTT subset (Colab/Kaggle free GPU)
-- Hybrid retrieval: latent-projection score + caption score fused via Reciprocal Rank Fusion
+**2.1 Free-tier foundations** ✅
+- [x] Gemini settings: `GEMINI_API_KEY` (secret-safe), model, RPM budget, cache dir
+- [x] Sliding-window rate limiter (thread-safe, deterministic tests)
+- [x] Content-addressed on-disk response cache (atomic, self-healing)
+- [x] Keyframe selection + size-capped JPEG encoding
+
+**2.2 Captioning**
+- [ ] `Captioner` protocol + Gemini Flash implementation (limiter + cache + retries on 429)
+- [ ] Caption store alongside the FAISS index; `latentlens caption` command
+
+**2.3 Text retrieval**
+- [ ] Local text embeddings (`sentence-transformers`) for captions and queries
+- [ ] `latentlens search --text "…"` over captions
+
+**2.4 Latent projection**
+- [ ] Train a lightweight **projection head** (contrastive / InfoNCE) aligning V-JEPA ↔ text space on an MSR-VTT subset (Colab/Kaggle free GPU)
+- [ ] Hybrid retrieval: latent-projection score + caption score fused via Reciprocal Rank Fusion
 
 ## Phase 3 — Grounded Video QA + UI
 Goal: ask questions, get answers with timestamp citations.
