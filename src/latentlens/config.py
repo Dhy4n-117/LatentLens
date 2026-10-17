@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     # Decoding
     resize_short_side: int | None = Field(default=256, ge=32)
 
-    # Language bridge (Phase 2) — Gemini free tier
+    # Language bridge (Phase 2) — Gemini free tier & local text embeddings
     gemini_api_key: SecretStr | None = Field(
         default=None,
         validation_alias=AliasChoices("GEMINI_API_KEY", "LATENTLENS_GEMINI_API_KEY"),
@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.5-flash"
     gemini_rpm: int = Field(default=10, ge=1, description="Requests/minute budget (free tier)")
     keyframes_per_clip: int = Field(default=3, ge=1, le=8)
+    text_model_id: str = "all-MiniLM-L6-v2"
 
     @field_validator("frames_per_clip")
     @classmethod
@@ -62,6 +63,10 @@ class Settings(BaseSettings):
     @property
     def index_dir(self) -> Path:
         return self.data_dir / "index"
+
+    @property
+    def text_index_dir(self) -> Path:
+        return self.data_dir / "text_index"
 
     @property
     def cache_dir(self) -> Path:

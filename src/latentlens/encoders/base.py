@@ -25,6 +25,21 @@ class VideoEncoder(Protocol):
         ...
 
 
+@runtime_checkable
+class TextEncoder(Protocol):
+    """Maps text strings to unit-norm float32 vectors."""
+
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def dim(self) -> int: ...
+
+    def encode(self, texts: Sequence[str]) -> np.ndarray:
+        """Return an array of shape ``(len(texts), dim)``, dtype float32, rows L2-normalised."""
+        ...
+
+
 def l2_normalize(vectors: np.ndarray, eps: float = 1e-12) -> np.ndarray:
     vectors = np.asarray(vectors, dtype=np.float32)
     norms = np.linalg.norm(vectors, axis=-1, keepdims=True)

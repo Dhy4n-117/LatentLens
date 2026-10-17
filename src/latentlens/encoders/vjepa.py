@@ -92,7 +92,5 @@ class VJEPAEncoder:
         logger.info("Loading %s on %s (%s)…", self._model_id, self.device, self.dtype)
         self._processor = AutoVideoProcessor.from_pretrained(self._model_id)
         self._model = (
-            AutoModel.from_pretrained(self._model_id, torch_dtype=self.dtype)
-            .to(self.device)
-            .eval()
+            AutoModel.from_pretrained(self._model_id, torch_dtype=self.dtype).to(self.device).eval()
         )
