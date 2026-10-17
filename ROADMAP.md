@@ -13,7 +13,7 @@ flowchart LR
 | Phase | Theme | Status |
 |------|-------|--------|
 | 1 | Visual memory core | ✅ Done |
-| 2 | Language bridge | 🚧 In progress (~10%) |
+| 2 | Language bridge | 🚧 In progress (~75%) |
 | 3 | Grounded video QA + UI | 🔜 |
 | 4 | Evaluation & production | 🔜 |
 
@@ -30,7 +30,7 @@ Goal: turn any video library into a searchable latent memory.
 - Moment-to-moment search ("find scenes that look/move like this one")
 - Typer + Rich CLI, pydantic settings, pytest suite with a fake encoder (no GPU needed)
 
-## Phase 2 — Language Bridge 🚧
+## Phase 2 — Language Bridge 🚧 (~75% complete)
 Goal: let *text* reach the V-JEPA latent space (V-JEPA has no text tower).
 
 **2.1 Free-tier foundations** ✅
@@ -39,15 +39,15 @@ Goal: let *text* reach the V-JEPA latent space (V-JEPA has no text tower).
 - [x] Content-addressed on-disk response cache (atomic, self-healing)
 - [x] Keyframe selection + size-capped JPEG encoding
 
-**2.2 Captioning**
-- [ ] `Captioner` protocol + Gemini Flash implementation (limiter + cache + retries on 429)
-- [ ] Caption store alongside the FAISS index; `latentlens caption` command
+**2.2 Captioning** ✅
+- [x] `Captioner` protocol + Gemini Flash implementation (limiter + cache + retries on 429)
+- [x] Caption store alongside the FAISS index; `latentlens caption` command
 
-**2.3 Text retrieval**
-- [ ] Local text embeddings (`sentence-transformers`) for captions and queries
-- [ ] `latentlens search --text "…"` over captions
+**2.3 Text retrieval** ✅
+- [x] Local text embeddings (`sentence-transformers`) for captions and queries
+- [x] `latentlens search --text "…"` over captions with hybrid ranking support
 
-**2.4 Latent projection**
+**2.4 Latent projection** (Remaining ~25% of Phase 2)
 - [ ] Train a lightweight **projection head** (contrastive / InfoNCE) aligning V-JEPA ↔ text space on an MSR-VTT subset (Colab/Kaggle free GPU)
 - [ ] Hybrid retrieval: latent-projection score + caption score fused via Reciprocal Rank Fusion
 
