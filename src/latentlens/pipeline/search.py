@@ -5,22 +5,32 @@ from __future__ import annotations
 from pathlib import Path
 
 from latentlens.config import Settings
-from latentlens.encoders.base import VideoEncoder
+from latentlens.encoders.base import TextEncoder, VideoEncoder
+from latentlens.index.captions import CaptionStore
 from latentlens.index.store import VectorStore
 from latentlens.types import ClipSpan, SearchHit
 from latentlens.video import VideoDecodeError, VideoReader, fingerprint, make_window
 
 
 class SearchService:
-    """Phase 1 search: *video moment → similar moments*.
+    """Multi-modal search service: search by visual moment or text queries."""
 
-    Phase 2 adds text queries by projecting language into the same latent space.
-    """
-
-    def __init__(self, encoder: VideoEncoder, store: VectorStore, settings: Settings) -> None:
+    def __init__(
+        self,
+        encoder: VideoEncoder,
+        store: VectorStore,
+        settings: Settings,
+        *,
+        text_encoder: TextEncoder | None = None,
+        captions: CaptionStore | None = None,
+        text_store: VectorStore | None = None,
+    ) -> None:
         self._encoder = encoder
         self._store = store
         self._settings = settings
+        self._text_encoder = text_encoder
+        self._captions = captions
+        self._text_store = text_store
 
     def search_by_moment(
         self,
@@ -62,4 +72,67 @@ class SearchService:
                 return False
             return not include_same_video or span.overlaps(start, end)
 
-        return self._store.search(query, k, exclude=exclude)
+        hits = self._store.search(query, k, exclude=exclude)
+        if self._captions is not None:
+            hits = [
+                SearchHit(
+                    rank=h.rank,
+                    score=h.score,
+                    span=h.span,
+                    caption=(
+                        self._captions.get(h.span).text if self._captions.get(h.span) else None
+                    ),
+                )
+                for h in hits
+            ]
+        return hits
+
+    def search_by_text(
+        self,
+        query_text: str,
+        *,
+        k: int = 5,
+    ) -> list[SearchHit]:
+        """Search clips by textual query using local text embeddings over clip captions."""
+        if not query_text.strip():
+            raise ValueError("query_text cannot be empty")
+        if self._text_encoder is None or self._captions is None:
+            raise RuntimeError("search_by_text requires text_encoder and captions store")
+
+        if len(self._captions) == 0:
+            return []
+
+        # If text_store is provided, search directly
+        if self._text_store is not None and len(self._text_store) > 0:
+            query_vec = self._text_encoder.encode([query_text])[0]
+            hits = self._text_store.search(query_vec, k=k)
+            return [
+                SearchHit(
+                    rank=h.rank,
+                    score=h.score,
+                    span=h.span,
+                    caption=(
+                        self._captions.get(h.span).text if self._captions.get(h.span) else None
+                    ),
+                )
+                for h in hits
+            ]
+
+        # On-the-fly caption similarity if text_store is not populated
+        captions_list = list(self._captions)
+        texts = [c.text for c in captions_list]
+        query_vec = self._text_encoder.encode([query_text])[0]
+        text_vecs = self._text_encoder.encode(texts)
+
+        scores = text_vecs @ query_vec
+        top_indices = scores.argsort()[::-1][:k]
+
+        return [
+            SearchHit(
+                rank=i + 1,
+                score=float(scores[idx]),
+                span=captions_list[idx].span,
+                caption=captions_list[idx].text,
+            )
+            for i, idx in enumerate(top_indices)
+        ]

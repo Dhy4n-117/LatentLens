@@ -99,42 +99,103 @@ def ingest(
 
 @app.command()
 def search(
-    video: Annotated[Path, typer.Argument(exists=True, dir_okay=False, help="Query video.")],
+    video: Annotated[
+        Path | None,
+        typer.Argument(help="Query video (optional if --text is provided)."),
+    ] = None,
+    text: Annotated[
+        str | None,
+        typer.Option("--text", "-q", help="Search video clips using natural language text query."),
+    ] = None,
     at: Annotated[float, typer.Option("--at", "-t", help="Query window start (seconds).")] = 0.0,
     k: Annotated[int, typer.Option("--top-k", "-k", min=1, help="Number of results.")] = 5,
     other_videos_only: Annotated[
         bool, typer.Option("--other-videos-only", help="Exclude the query video entirely.")
     ] = False,
 ) -> None:
-    """Find moments that look and move like a given moment."""
+    """Find similar moments from a video clip, or search clips with a text query."""
     settings = get_settings()
+    from latentlens.encoders import SentenceTransformerTextEncoder
+    from latentlens.index import CaptionStore
     from latentlens.pipeline import SearchService
 
-    encoder, store = _load_components(settings)
-    if len(store) == 0:
-        console.print("[yellow]Index is empty — run `latentlens ingest` first.[/]")
+    if video is None and not text:
+        console.print(
+            "[red]Error: You must provide either a query video or a text query (--text).[/]"
+        )
         raise typer.Exit(1)
 
-    with console.status("Encoding query clip…"):
-        hits = SearchService(encoder, store, settings).search_by_moment(
-            video, at, k=k, include_same_video=not other_videos_only
+    captions = (
+        CaptionStore.load(settings.captions_path) if settings.captions_path.exists() else None
+    )
+
+    if text:
+        if captions is None or len(captions) == 0:
+            console.print(
+                "[yellow]No captions available to search. Run `latentlens caption` first.[/]"
+            )
+            raise typer.Exit(1)
+
+        text_encoder = SentenceTransformerTextEncoder(
+            settings.text_model_id, device=settings.device
+        )
+        encoder, store = _load_components(settings)
+        service = SearchService(
+            encoder=encoder,
+            store=store,
+            settings=settings,
+            text_encoder=text_encoder,
+            captions=captions,
         )
 
-    table = Table(
-        title=f"Moments similar to {video.name} @ {format_timestamp(at)}",
-        header_style="bold magenta",
-    )
+        with console.status("Searching clips by text..."):
+            hits = service.search_by_text(text, k=k)
+
+        title = f'Clips matching "{text}"'
+    else:
+        assert video is not None
+        if not video.is_file():
+            console.print(f"[red]Error: Query video file not found: {video}[/]")
+            raise typer.Exit(1)
+
+        encoder, store = _load_components(settings)
+        if len(store) == 0:
+            console.print("[yellow]Index is empty — run `latentlens ingest` first.[/]")
+            raise typer.Exit(1)
+
+        service = SearchService(
+            encoder=encoder,
+            store=store,
+            settings=settings,
+            captions=captions,
+        )
+
+        with console.status("Encoding query clip…"):
+            hits = service.search_by_moment(
+                video, at, k=k, include_same_video=not other_videos_only
+            )
+
+        title = f"Moments similar to {video.name} @ {format_timestamp(at)}"
+
+    table = Table(title=title, header_style="bold magenta")
     table.add_column("#", justify="right")
     table.add_column("Score", justify="right")
     table.add_column("Video")
     table.add_column("Span")
+    if any(h.caption for h in hits):
+        table.add_column("Caption")
+
     for hit in hits:
-        table.add_row(
+        row = [
             str(hit.rank),
             f"{hit.score:.3f}",
             Path(hit.span.video_path).name,
             hit.span.label(),
-        )
+        ]
+        if any(h.caption for h in hits):
+            row.append(hit.caption or "")
+        table.add_row(*row)
+
     console.print(table if hits else "[yellow]No matches.[/]")
 
 

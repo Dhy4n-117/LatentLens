@@ -32,6 +32,7 @@ class SearchHit:
     rank: int
     score: float
     span: ClipSpan
+    caption: str | None = None
 
 
 def format_timestamp(seconds: float) -> str:
