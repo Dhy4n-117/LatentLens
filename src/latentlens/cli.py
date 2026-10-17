@@ -139,10 +139,63 @@ def search(
 
 
 @app.command()
-def stats() -> None:
-    """Show what's in the index."""
+def caption(
+    limit: Annotated[
+        int | None,
+        typer.Option("--limit", "-n", min=1, help="Max clips to caption (free quota budget)."),
+    ] = None,
+) -> None:
+    """Generate Gemini captions for clips in the index."""
     settings = get_settings()
-    from latentlens.index import VectorStore
+    from latentlens.index import CaptionStore, VectorStore
+    from latentlens.llm import GeminiCaptioner, RateLimiter, ResponseCache
+    from latentlens.pipeline import CaptioningPipeline
+
+    if not (settings.index_dir / "metadata.json").exists():
+        console.print("[yellow]Index is empty — run `latentlens ingest` first.[/]")
+        raise typer.Exit(1)
+
+    api_key = settings.require_gemini_key()
+    store = VectorStore.load(settings.index_dir)
+    spans = store.spans()
+    if not spans:
+        console.print("[yellow]No clips found in index.[/]")
+        raise typer.Exit()
+
+    captions = CaptionStore.load(settings.captions_path)
+    limiter = RateLimiter.per_minute(settings.gemini_rpm)
+    cache = ResponseCache(settings.cache_dir)
+    captioner = GeminiCaptioner(
+        api_key=api_key,
+        model=settings.gemini_model,
+        limiter=limiter,
+        cache=cache,
+    )
+    pipeline = CaptioningPipeline(captioner, captions, settings)
+
+    with _progress() as progress:
+        task = progress.add_task("Captioning clips...", total=None)
+
+        def advance(done: int, total: int, t: TaskID = task) -> None:
+            progress.update(t, completed=done, total=total)
+
+        report = pipeline.run(spans, limit=limit, on_progress=advance)
+        progress.remove_task(task)
+
+    console.print(
+        f"[green]Done![/] Captioned: [bold]{report.captioned}[/], "
+        f"Already cached/done: [bold]{report.already_done}[/], "
+        f"Failed: [bold]{report.failed}[/], "
+        f"Missing video files: [bold]{report.missing_video}[/]"
+    )
+    console.print(f"Total captions in store: [bold]{len(captions)}[/] → {settings.captions_path}")
+
+
+@app.command()
+def stats() -> None:
+    """Show what's in the index and caption store."""
+    settings = get_settings()
+    from latentlens.index import CaptionStore, VectorStore
 
     if not (settings.index_dir / "metadata.json").exists():
         console.print("[yellow]No index yet.[/]")
@@ -158,14 +211,18 @@ def stats() -> None:
     console.print(table)
     console.print(f"Total clips: [bold]{len(store)}[/]")
 
+    if settings.captions_path.exists():
+        captions = CaptionStore.load(settings.captions_path)
+        console.print(f"Total captions: [bold]{len(captions)}[/] → {settings.captions_path}")
+
 
 @app.command()
 def remove(
     video_id: Annotated[str, typer.Argument(help="ID shown by `latentlens stats`.")],
 ) -> None:
-    """Remove a video's clips from the index."""
+    """Remove a video's clips and captions from the index."""
     settings = get_settings()
-    from latentlens.index import VectorStore
+    from latentlens.index import CaptionStore, VectorStore
 
     store = VectorStore.load(settings.index_dir)
     removed = store.remove_video(video_id)
@@ -173,7 +230,15 @@ def remove(
         console.print(f"[yellow]No clips found for {video_id}.[/]")
         raise typer.Exit(1)
     store.save(settings.index_dir)
-    console.print(f"Removed [bold]{removed}[/] clips.")
+
+    removed_caps = 0
+    if settings.captions_path.exists():
+        captions = CaptionStore.load(settings.captions_path)
+        removed_caps = captions.remove_video(video_id)
+        if removed_caps:
+            captions.save()
+
+    console.print(f"Removed [bold]{removed}[/] clips and [bold]{removed_caps}[/] captions.")
 
 
 # -- helpers ----------------------------------------------------------------

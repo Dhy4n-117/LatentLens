@@ -9,6 +9,8 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
+from latentlens.video.segmenter import FrameWindow
+
 
 def keyframe_indices(num_frames: int, count: int) -> list[int]:
     """Indices of ``count`` frames at the centres of equal temporal segments.
@@ -27,6 +29,22 @@ def select_keyframes(frames: np.ndarray, count: int = 3) -> np.ndarray:
     if frames.ndim != 4 or frames.shape[-1] != 3:
         raise ValueError(f"Expected (T, H, W, 3) frames, got shape {frames.shape}")
     return frames[keyframe_indices(len(frames), count)]
+
+
+def keyframe_window(
+    start_sec: float, end_sec: float, *, fps: float, frame_count: int, count: int
+) -> FrameWindow:
+    """A window that decodes *only* the keyframes of ``[start_sec, end_sec)``."""
+    if fps <= 0 or frame_count <= 0:
+        raise ValueError("fps and frame_count must be positive")
+    first = min(round(start_sec * fps), frame_count - 1)
+    last = max(first, min(round(end_sec * fps) - 1, frame_count - 1))
+    offsets = keyframe_indices(last - first + 1, count)
+    return FrameWindow(
+        start_sec=round(start_sec, 3),
+        end_sec=round(end_sec, 3),
+        frame_indices=tuple(first + o for o in offsets),
+    )
 
 
 def encode_jpeg(frame: np.ndarray, *, max_side: int = 512, quality: int = 85) -> bytes:

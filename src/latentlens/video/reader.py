@@ -130,9 +130,7 @@ class VideoReader:
             for slot, frame_idx in enumerate(window.frame_indices):
                 routes[frame_idx].append((w_idx, slot))
 
-        buffers: list[list[np.ndarray | None]] = [
-            [None] * len(w.frame_indices) for w in windows
-        ]
+        buffers: list[list[np.ndarray | None]] = [[None] * len(w.frame_indices) for w in windows]
         last_needed = max(routes)
         next_emit = 0
         frame_idx = 0

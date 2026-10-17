@@ -67,6 +67,10 @@ class Settings(BaseSettings):
     def cache_dir(self) -> Path:
         return self.data_dir / "cache"
 
+    @property
+    def captions_path(self) -> Path:
+        return self.data_dir / "captions.json"
+
     def require_gemini_key(self) -> str:
         """Return the Gemini key or fail with an actionable message."""
         if self.gemini_api_key is None or not self.gemini_api_key.get_secret_value():

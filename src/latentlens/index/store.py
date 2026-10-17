@@ -70,6 +70,10 @@ class VectorStore:
     def has_video(self, video_id: str) -> bool:
         return any(span.video_id == video_id for span in self._spans.values())
 
+    def spans(self) -> list[ClipSpan]:
+        """All indexed spans in insertion order."""
+        return [self._spans[i] for i in sorted(self._spans)]
+
     def videos(self) -> dict[str, tuple[str, int]]:
         """Map ``video_id -> (path, clip_count)``."""
         summary: dict[str, tuple[str, int]] = {}
@@ -133,9 +137,7 @@ class VectorStore:
         raw = np.frombuffer((directory / INDEX_FILE).read_bytes(), dtype=np.uint8)
         store._index = faiss.deserialize_index(raw)
         store._next_id = int(meta["next_id"])
-        store._spans = {
-            int(c.pop("id")): ClipSpan(**c) for c in meta["clips"]
-        }
+        store._spans = {int(c.pop("id")): ClipSpan(**c) for c in meta["clips"]}
         if store._index.ntotal != len(store._spans):
             raise IncompatibleIndexError(f"Index and metadata are out of sync in {directory}")
         return store
