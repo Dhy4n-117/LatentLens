@@ -96,6 +96,8 @@ class SearchService:
         """Search clips by textual query using local text embeddings over clip captions."""
         if not query_text.strip():
             raise ValueError("query_text cannot be empty")
+        if k < 1:
+            raise ValueError("k must be >= 1")
         if self._text_encoder is None or self._captions is None:
             raise RuntimeError("search_by_text requires text_encoder and captions store")
 

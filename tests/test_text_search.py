@@ -81,3 +81,17 @@ def test_search_by_text_requires_query(tmp_path: Path, settings: Settings) -> No
     )
     with pytest.raises(ValueError):
         service.search_by_text("   ")
+
+
+def test_search_by_text_validates_k(tmp_path: Path, settings: Settings) -> None:
+    captions = CaptionStore(tmp_path / "captions.json")
+    service = SearchService(
+        encoder=ColorEncoder(),
+        store=VectorStore(dim=3, encoder_name="fake"),
+        settings=settings,
+        text_encoder=FakeTextEncoder(),
+        captions=captions,
+    )
+    with pytest.raises(ValueError, match="k must be >= 1"):
+        service.search_by_text("query", k=0)
+
