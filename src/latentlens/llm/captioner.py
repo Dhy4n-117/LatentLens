@@ -57,6 +57,10 @@ class GeminiCaptioner:
         sleep: Callable[[float], None] = time.sleep,
         client: Any = None,
     ) -> None:
+        if max_retries < 0:
+            raise ValueError("max_retries must be non-negative")
+        if backoff_sec <= 0:
+            raise ValueError("backoff_sec must be positive")
         self.model = model
         self.prompt = prompt
         self._limiter = limiter

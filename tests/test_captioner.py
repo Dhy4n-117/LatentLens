@@ -120,3 +120,23 @@ def test_requires_images(make_captioner: Callable[..., Any]) -> None:
     captioner, _, _ = make_captioner()
     with pytest.raises(ValueError):
         captioner.caption([])
+
+
+@pytest.mark.parametrize(
+    ("max_retries", "backoff_sec"),
+    [(-1, 1.0), (2, 0.0), (1, -0.5)],
+)
+def test_rejects_invalid_retry_parameters(
+    tmp_path: Path, max_retries: int, backoff_sec: float
+) -> None:
+    with pytest.raises(ValueError):
+        GeminiCaptioner(
+            api_key="unused",
+            model="gemini-test",
+            limiter=RateLimiter(10, 60.0),
+            cache=ResponseCache(tmp_path / "cache"),
+            max_retries=max_retries,
+            backoff_sec=backoff_sec,
+            client=SimpleNamespace(models=FakeModels([])),
+        )
+
