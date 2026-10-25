@@ -57,3 +57,9 @@ def test_encode_jpeg_keeps_small_frames_unscaled() -> None:
 def test_encode_jpeg_rejects_bad_quality(quality: int) -> None:
     with pytest.raises(ValueError):
         encode_jpeg(np.zeros((8, 8, 3), dtype=np.uint8), quality=quality)
+
+
+def test_encode_jpeg_rejects_empty_frame() -> None:
+    with pytest.raises(ValueError, match="empty frame"):
+        encode_jpeg(np.zeros((0, 0, 3), dtype=np.uint8))
+

@@ -51,6 +51,8 @@ def encode_jpeg(frame: np.ndarray, *, max_side: int = 512, quality: int = 85) ->
     """Downscale an RGB frame so its long side is at most ``max_side``, then JPEG-encode it."""
     if frame.ndim != 3 or frame.shape[-1] != 3:
         raise ValueError(f"Expected (H, W, 3) frame, got shape {frame.shape}")
+    if frame.size == 0:
+        raise ValueError("Cannot encode an empty frame")
     if not 1 <= quality <= 100:
         raise ValueError("quality must be in [1, 100]")
 
