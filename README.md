@@ -3,7 +3,7 @@
 **Video Q&A over the real world**: [V-JEPA 2](https://ai.meta.com/vjepa/) provides the visual memory and Gemini handles the language reasoning.
 Every part of the stack is free: open-weight models, open-source libraries, and the Gemini free tier.
 
-> **Status:** Phase 1 (Visual memory core) is complete. Phase 2 (Language bridge) is ~75% complete: free-tier plumbing, Gemini captioning pipeline, local text embeddings (`sentence-transformers`), and text-based clip search are done. See [ROADMAP.md](ROADMAP.md).
+> **Status:** Phase 1 (Visual memory core) and Phase 2 (Language bridge) are complete: free-tier plumbing, Gemini captioning pipeline, local text embeddings (`sentence-transformers`), text-based clip search, latent projection alignment, and Reciprocal Rank Fusion are done. See [ROADMAP.md](ROADMAP.md).
 
 ## Why V-JEPA?
 V-JEPA learns by predicting *masked regions in latent space* instead of reconstructing pixels.
