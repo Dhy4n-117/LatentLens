@@ -76,6 +76,10 @@ class Settings(BaseSettings):
     def captions_path(self) -> Path:
         return self.data_dir / "captions.json"
 
+    @property
+    def projection_head_path(self) -> Path:
+        return self.data_dir / "projection_head.pt"
+
     def require_gemini_key(self) -> str:
         """Return the Gemini key or fail with an actionable message."""
         if self.gemini_api_key is None or not self.gemini_api_key.get_secret_value():

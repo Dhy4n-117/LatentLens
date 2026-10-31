@@ -26,6 +26,9 @@ def test_derived_directories(tmp_path: Path) -> None:
     settings = _settings(data_dir=tmp_path)
     assert settings.index_dir == tmp_path / "index"
     assert settings.cache_dir == tmp_path / "cache"
+    assert settings.captions_path == tmp_path / "captions.json"
+    assert settings.projection_head_path == tmp_path / "projection_head.pt"
+
 
 
 def test_reads_standard_gemini_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
