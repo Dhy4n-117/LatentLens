@@ -13,8 +13,8 @@ flowchart LR
 | Phase | Theme | Status |
 |------|-------|--------|
 | 1 | Visual memory core | ✅ Done |
-| 2 | Language bridge | 🚧 In progress (~75%) |
-| 3 | Grounded video QA + UI | 🔜 |
+| 2 | Language bridge | ✅ Done (100%) |
+| 3 | Grounded video QA + UI | ⏳ Next |
 | 4 | Evaluation & production | 🔜 |
 
 ---
@@ -30,7 +30,7 @@ Goal: turn any video library into a searchable latent memory.
 - Moment-to-moment search ("find scenes that look/move like this one")
 - Typer + Rich CLI, pydantic settings, pytest suite with a fake encoder (no GPU needed)
 
-## Phase 2 — Language Bridge 🚧 (~75% complete)
+## Phase 2 — Language Bridge ✅
 Goal: let *text* reach the V-JEPA latent space (V-JEPA has no text tower).
 
 **2.1 Free-tier foundations** ✅
@@ -47,9 +47,10 @@ Goal: let *text* reach the V-JEPA latent space (V-JEPA has no text tower).
 - [x] Local text embeddings (`sentence-transformers`) for captions and queries
 - [x] `latentlens search --text "…"` over captions with hybrid ranking support
 
-**2.4 Latent projection** (Remaining ~25% of Phase 2)
-- [ ] Train a lightweight **projection head** (contrastive / InfoNCE) aligning V-JEPA ↔ text space on an MSR-VTT subset (Colab/Kaggle free GPU)
-- [ ] Hybrid retrieval: latent-projection score + caption score fused via Reciprocal Rank Fusion
+**2.4 Latent projection & Fusion** ✅
+- [x] PyTorch `LatentProjectionHead` and symmetric `InfoNCELoss` for V-JEPA ↔ text space alignment
+- [x] Hybrid retrieval via Reciprocal Rank Fusion (`reciprocal_rank_fusion` and `SearchService.hybrid_search`)
+
 
 ## Phase 3 — Grounded Video QA + UI
 Goal: ask questions, get answers with timestamp citations.
