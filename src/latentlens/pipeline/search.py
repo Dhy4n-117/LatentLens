@@ -8,6 +8,7 @@ from latentlens.config import Settings
 from latentlens.encoders.base import TextEncoder, VideoEncoder
 from latentlens.index.captions import CaptionStore
 from latentlens.index.store import VectorStore
+from latentlens.pipeline.fusion import reciprocal_rank_fusion
 from latentlens.types import ClipSpan, SearchHit
 from latentlens.video import VideoDecodeError, VideoReader, fingerprint, make_window
 
@@ -138,3 +139,14 @@ class SearchService:
             )
             for i, idx in enumerate(top_indices)
         ]
+
+    def hybrid_search(
+        self,
+        ranked_results: list[list[SearchHit]],
+        *,
+        k: int = 5,
+        c: float = 60.0,
+    ) -> list[SearchHit]:
+        """Combine multiple retrieval result rankings via Reciprocal Rank Fusion."""
+        return reciprocal_rank_fusion(ranked_results, k=k, c=c)
+
