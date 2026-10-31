@@ -9,7 +9,7 @@ from latentlens.config import Settings
 from latentlens.encoders.base import l2_normalize
 from latentlens.index import CaptionStore, VectorStore
 from latentlens.pipeline.search import SearchService
-from latentlens.types import ClipSpan
+from latentlens.types import ClipSpan, SearchHit
 from tests.conftest import ColorEncoder
 
 
@@ -94,4 +94,19 @@ def test_search_by_text_validates_k(tmp_path: Path, settings: Settings) -> None:
     )
     with pytest.raises(ValueError, match="k must be >= 1"):
         service.search_by_text("query", k=0)
+
+
+def test_search_service_hybrid_search(tmp_path: Path, settings: Settings) -> None:
+    s1 = ClipSpan("v1", "/p/v1.mp4", 0.0, 4.0)
+    s2 = ClipSpan("v2", "/p/v2.mp4", 0.0, 4.0)
+    service = SearchService(
+        encoder=ColorEncoder(),
+        store=VectorStore(dim=3, encoder_name="fake"),
+        settings=settings,
+    )
+    r1 = [SearchHit(1, 0.9, s1)]
+    r2 = [SearchHit(1, 0.95, s2)]
+    fused = service.hybrid_search([r1, r2], k=2)
+    assert len(fused) == 2
+
 
