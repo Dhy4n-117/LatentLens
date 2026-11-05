@@ -35,6 +35,17 @@ class SearchHit:
     caption: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class GroundedAnswer:
+    """An LLM-generated answer grounded in retrieved video clips."""
+
+    query: str
+    answer: str
+    citations: tuple[ClipSpan, ...]
+    hits: tuple[SearchHit, ...] = ()
+
+
+
 def format_timestamp(seconds: float) -> str:
     """Format seconds as ``MM:SS.s`` (or ``H:MM:SS.s`` for long videos)."""
     minutes, secs = divmod(max(seconds, 0.0), 60)
