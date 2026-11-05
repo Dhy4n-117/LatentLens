@@ -13,8 +13,8 @@ flowchart LR
 | Phase | Theme | Status |
 |------|-------|--------|
 | 1 | Visual memory core | ✅ Done |
-| 2 | Language bridge | ✅ Done (100%) |
-| 3 | Grounded video QA + UI | ⏳ Next |
+| 2 | Language bridge | ✅ Done |
+| 3 | Grounded video QA + UI | 🚧 In progress |
 | 4 | Evaluation & production | 🔜 |
 
 ---
@@ -52,13 +52,15 @@ Goal: let *text* reach the V-JEPA latent space (V-JEPA has no text tower).
 - [x] Hybrid retrieval via Reciprocal Rank Fusion (`reciprocal_rank_fusion` and `SearchService.hybrid_search`)
 
 
-## Phase 3 — Grounded Video QA + UI
+## Phase 3 — Grounded Video QA + UI 🚧
 Goal: ask questions, get answers with timestamp citations.
 
-- Retrieval-augmented prompting: top-k clips → captions + keyframes → Gemini
-- Citation-enforced answers (`[video @ 00:12–00:16]`), refusal when evidence is weak
-- Multi-turn conversation memory, query rewriting
-- FastAPI backend + Gradio front-end with clip playback at cited timestamps
+- [x] Grounded QA domain contracts (`GroundedAnswer`)
+- [x] Retrieval-augmented prompting templates (`build_qa_prompt`, `format_qa_context`)
+- [ ] Grounded QA pipeline integrating retrieval + Gemini generation
+- [ ] Citation-enforced answers (`[video @ 00:12–00:16]`), refusal when evidence is weak
+- [ ] Multi-turn conversation memory, query rewriting
+- [ ] FastAPI backend + Gradio front-end with clip playback at cited timestamps
 
 ## Phase 4 — Evaluation & Production
 Goal: prove it works and ship it.
