@@ -57,6 +57,9 @@ Goal: ask questions, get answers with timestamp citations.
 
 - [x] Grounded QA domain contracts (`GroundedAnswer`)
 - [x] Retrieval-augmented prompting templates (`build_qa_prompt`, `format_qa_context`)
+- [x] Agent harness tool contracts, registry, and dispatcher (`ToolRegistry`, `AgentTool`)
+- [x] Core agent tools: `SearchMomentsTool`, `GetAdjacentClipsTool`, and CLI `latentlens tools`
+- [ ] Agent harness execution loop (`VideoAgentHarness`) with step budgeting & function calling
 - [ ] Grounded QA pipeline integrating retrieval + Gemini generation
 - [ ] Citation-enforced answers (`[video @ 00:12–00:16]`), refusal when evidence is weak
 - [ ] Multi-turn conversation memory, query rewriting
