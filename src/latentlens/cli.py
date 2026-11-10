@@ -277,6 +277,50 @@ def stats() -> None:
         console.print(f"Total captions: [bold]{len(captions)}[/] → {settings.captions_path}")
 
 
+@app.command(name="tools")
+def list_tools() -> None:
+    """List tools available to the video QA agent harness."""
+    settings = get_settings()
+    from latentlens.agent import GetAdjacentClipsTool, SearchMomentsTool, ToolRegistry
+    from latentlens.encoders import SentenceTransformerTextEncoder
+    from latentlens.index import CaptionStore
+    from latentlens.pipeline import SearchService
+
+    registry = ToolRegistry()
+
+    if (settings.index_dir / "metadata.json").exists():
+        encoder, store = _load_components(settings)
+        captions = (
+            CaptionStore.load(settings.captions_path) if settings.captions_path.exists() else None
+        )
+        text_encoder = SentenceTransformerTextEncoder(
+            settings.text_model_id, device=settings.device
+        )
+        service = SearchService(
+            encoder=encoder,
+            store=store,
+            settings=settings,
+            text_encoder=text_encoder,
+            captions=captions,
+        )
+        registry.register(SearchMomentsTool(service))
+        registry.register(GetAdjacentClipsTool(store, captions))
+
+    table = Table(title="Agent Harness Tools", header_style="bold green")
+    table.add_column("Tool Name", style="bold")
+    table.add_column("Parameters")
+    table.add_column("Description")
+
+    for tool in registry:
+        param_desc = ", ".join(
+            f"{p.name}: {p.type}" + ("" if p.required else f" (default={p.default})")
+            for p in tool.definition.parameters
+        )
+        table.add_row(tool.definition.name, param_desc, tool.definition.description)
+
+    console.print(table if len(registry) else "[yellow]No index loaded. Ingest videos first.[/]")
+
+
 @app.command()
 def remove(
     video_id: Annotated[str, typer.Argument(help="ID shown by `latentlens stats`.")],
