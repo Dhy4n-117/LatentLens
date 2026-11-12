@@ -7,6 +7,7 @@ from latentlens.agent.tools import (
     InspectClipTool,
     ListVideosTool,
     SearchMomentsTool,
+    build_default_registry,
 )
 from latentlens.config import Settings
 from latentlens.index.captions import CaptionStore
@@ -109,3 +110,20 @@ def test_list_videos_tool() -> None:
     assert res.output[0]["video_id"] == "v1"
     assert res.output[0]["clip_count"] == 2
     assert res.output[0]["end_sec"] == 8.0
+
+
+def test_build_default_registry_registers_four_tools(settings: Settings) -> None:
+    store = VectorStore(dim=3, encoder_name="fake")
+    service = SearchService(
+        encoder=ColorEncoder(),
+        store=store,
+        settings=settings,
+    )
+    registry = build_default_registry(service, store)
+    names = [d.name for d in registry.get_definitions()]
+    assert names == [
+        "search_moments",
+        "get_adjacent_clips",
+        "inspect_clip",
+        "list_videos",
+    ]

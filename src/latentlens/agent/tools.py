@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from latentlens.agent.registry import ToolRegistry
 from latentlens.agent.types import ToolDefinition, ToolParameter, ToolResult
 from latentlens.index.captions import CaptionStore
 from latentlens.index.store import VectorStore
@@ -58,6 +59,7 @@ class SearchMomentsTool:
                     "rank": h.rank,
                     "video": Path(h.span.video_path).name,
                     "video_id": h.span.video_id,
+                    "video_path": h.span.video_path,
                     "timestamp": h.span.label(),
                     "start_sec": h.span.start_sec,
                     "end_sec": h.span.end_sec,
@@ -138,6 +140,7 @@ class GetAdjacentClipsTool:
                 {
                     "video": Path(s.video_path).name,
                     "video_id": s.video_id,
+                    "video_path": s.video_path,
                     "timestamp": s.label(),
                     "start_sec": s.start_sec,
                     "end_sec": s.end_sec,
@@ -273,3 +276,17 @@ class ListVideosTool:
             output=summaries,
             metadata={"video_count": len(summaries)},
         )
+
+
+def build_default_registry(
+    search_service: SearchService,
+    store: VectorStore,
+    captions: CaptionStore | None = None,
+) -> ToolRegistry:
+    """Create a ``ToolRegistry`` populated with the 4 standard video QA tools."""
+    registry = ToolRegistry()
+    registry.register(SearchMomentsTool(search_service))
+    registry.register(GetAdjacentClipsTool(store, captions))
+    registry.register(InspectClipTool(store, captions))
+    registry.register(ListVideosTool(store))
+    return registry
