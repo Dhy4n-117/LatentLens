@@ -150,3 +150,82 @@ class GetAdjacentClipsTool:
             output=results,
             metadata={"count": len(results)},
         )
+
+
+class InspectClipTool:
+    """Tool allowing an agent to inspect a targeted time range inside a video."""
+
+    def __init__(self, store: VectorStore, captions: CaptionStore | None = None) -> None:
+        self._store = store
+        self._captions = captions
+
+    @property
+    def definition(self) -> ToolDefinition:
+        return ToolDefinition(
+            name="inspect_clip",
+            description=(
+                "Inspect captions and metadata for clips overlapping a specific "
+                "[start_sec, end_sec] window inside a given video."
+            ),
+            parameters=(
+                ToolParameter(
+                    name="video_id",
+                    type="string",
+                    description="Identifier of the video to inspect.",
+                    required=True,
+                ),
+                ToolParameter(
+                    name="start_sec",
+                    type="number",
+                    description="Start time of the inspection window in seconds.",
+                    required=True,
+                ),
+                ToolParameter(
+                    name="end_sec",
+                    type="number",
+                    description="End time of the inspection window in seconds.",
+                    required=True,
+                ),
+            ),
+        )
+
+    def execute(self, video_id: str, start_sec: float, end_sec: float) -> ToolResult:
+        if end_sec <= start_sec:
+            return ToolResult(
+                tool_name="inspect_clip",
+                output="Error: end_sec must be greater than start_sec.",
+                is_error=True,
+            )
+
+        spans = [
+            s
+            for s in self._store.spans()
+            if s.video_id == video_id and s.overlaps(start_sec, end_sec)
+        ]
+        spans.sort(key=lambda s: s.start_sec)
+
+        results: list[dict[str, Any]] = []
+        for s in spans:
+            cap_text = None
+            if self._captions is not None:
+                cap = self._captions.get(s)
+                if cap:
+                    cap_text = cap.text
+            results.append(
+                {
+                    "video": Path(s.video_path).name,
+                    "video_id": s.video_id,
+                    "video_path": s.video_path,
+                    "timestamp": s.label(),
+                    "start_sec": s.start_sec,
+                    "end_sec": s.end_sec,
+                    "duration": round(s.duration, 2),
+                    "caption": cap_text or "No caption",
+                }
+            )
+
+        return ToolResult(
+            tool_name="inspect_clip",
+            output=results,
+            metadata={"count": len(results)},
+        )
