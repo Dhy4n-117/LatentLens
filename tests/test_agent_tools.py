@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from latentlens.agent.tools import GetAdjacentClipsTool, InspectClipTool, SearchMomentsTool
+from latentlens.agent.tools import (
+    GetAdjacentClipsTool,
+    InspectClipTool,
+    ListVideosTool,
+    SearchMomentsTool,
+)
 from latentlens.config import Settings
 from latentlens.index.captions import CaptionStore
 from latentlens.index.store import VectorStore
@@ -86,3 +91,21 @@ def test_inspect_clip_tool(tmp_path: Path) -> None:
 
     bad = tool.execute(video_id="v1", start_sec=8.0, end_sec=4.0)
     assert bad.is_error
+
+
+def test_list_videos_tool() -> None:
+    import numpy as np
+
+    store = VectorStore(dim=3, encoder_name="fake")
+    s1 = ClipSpan("v1", "/path/v1.mp4", 0.0, 4.0)
+    s2 = ClipSpan("v1", "/path/v1.mp4", 4.0, 8.0)
+    s3 = ClipSpan("v2", "/path/v2.mp4", 0.0, 4.0)
+    store.add([s1, s2, s3], np.ones((3, 3), dtype=np.float32))
+
+    tool = ListVideosTool(store)
+    res = tool.execute()
+    assert not res.is_error
+    assert len(res.output) == 2
+    assert res.output[0]["video_id"] == "v1"
+    assert res.output[0]["clip_count"] == 2
+    assert res.output[0]["end_sec"] == 8.0

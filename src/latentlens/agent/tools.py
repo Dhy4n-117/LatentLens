@@ -229,3 +229,47 @@ class InspectClipTool:
             output=results,
             metadata={"count": len(results)},
         )
+
+
+class ListVideosTool:
+    """Tool allowing an agent to list all videos currently stored in the index."""
+
+    def __init__(self, store: VectorStore) -> None:
+        self._store = store
+
+    @property
+    def definition(self) -> ToolDefinition:
+        return ToolDefinition(
+            name="list_videos",
+            description=(
+                "List all indexed videos along with their clip counts and covered "
+                "time range in seconds."
+            ),
+            parameters=(),
+        )
+
+    def execute(self) -> ToolResult:
+        grouped: dict[str, list[Any]] = {}
+        for span in self._store.spans():
+            grouped.setdefault(span.video_id, []).append(span)
+
+        summaries: list[dict[str, Any]] = []
+        for video_id in sorted(grouped):
+            spans = grouped[video_id]
+            min_start = min(s.start_sec for s in spans)
+            max_end = max(s.end_sec for s in spans)
+            summaries.append(
+                {
+                    "video_id": video_id,
+                    "video": Path(spans[0].video_path).name,
+                    "clip_count": len(spans),
+                    "start_sec": round(min_start, 2),
+                    "end_sec": round(max_end, 2),
+                }
+            )
+
+        return ToolResult(
+            tool_name="list_videos",
+            output=summaries,
+            metadata={"video_count": len(summaries)},
+        )
