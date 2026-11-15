@@ -6,7 +6,9 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
+import pytest
 
+from latentlens.agent.config import HarnessConfig
 from latentlens.agent.harness import VideoAgentHarness
 from latentlens.agent.model import Message, ModelTurn, ToolCall
 from latentlens.agent.tools import build_default_registry
@@ -52,6 +54,7 @@ def _make_harness(
     tmp_path: Path,
     settings: Settings,
     turns: Sequence[ModelTurn],
+    config: HarnessConfig | None = None,
 ) -> VideoAgentHarness:
     store = VectorStore(dim=3, encoder_name="fake")
     s1 = ClipSpan("kitchen", "/videos/kitchen.mp4", 0.0, 4.0)
@@ -71,7 +74,7 @@ def _make_harness(
     )
     registry = build_default_registry(service, store, captions)
     model = ScriptedAgentModel(turns)
-    return VideoAgentHarness(model=model, registry=registry)
+    return VideoAgentHarness(model=model, registry=registry, config=config)
 
 
 def test_harness_single_step_direct_answer(tmp_path: Path, settings: Settings) -> None:
@@ -127,3 +130,58 @@ def test_harness_multi_step_search_and_temporal_expansion(
     assert answer.citations[0].start_sec == 0.0
     assert answer.citations[1].start_sec == 4.0
     assert len(answer.hits) == 1
+
+
+def test_harness_budget_exhaustion_triggers_synthesis(tmp_path: Path, settings: Settings) -> None:
+    turns = [
+        ModelTurn(tool_calls=(ToolCall(name="list_videos", arguments={}),)),
+        ModelTurn(
+            tool_calls=(
+                ToolCall(name="search_moments", arguments={"query": "backpack", "top_k": 1}),
+            )
+        ),
+        ModelTurn(text="Synthesized from budget limit: [kitchen @ 00:00.0–00:04.0]."),
+    ]
+    harness = _make_harness(
+        tmp_path,
+        settings,
+        turns=turns,
+        config=HarnessConfig(max_steps=2),
+    )
+    answer, trace = harness.run("What happened?")
+    assert trace.termination_reason == "max_steps_reached"
+    assert trace.total_steps == 3  # 2 tool steps + 1 synthesis step
+    assert "Synthesized from budget limit" in answer.answer
+    assert len(answer.citations) == 1
+
+
+def test_harness_caps_tool_calls_per_step_and_handles_unknown_tool(
+    tmp_path: Path, settings: Settings
+) -> None:
+    turns = [
+        ModelTurn(
+            tool_calls=(
+                ToolCall(name="nonexistent_tool", arguments={}),
+                ToolCall(name="list_videos", arguments={}),
+                ToolCall(name="search_moments", arguments={"query": "extra"}),
+            )
+        ),
+        ModelTurn(text="Recovered after unknown tool."),
+    ]
+    harness = _make_harness(
+        tmp_path,
+        settings,
+        turns=turns,
+        config=HarnessConfig(max_steps=3, max_tool_calls_per_step=2),
+    )
+    answer, trace = harness.run("Test cap and recovery")
+    assert answer.answer == "Recovered after unknown tool."
+    assert trace.steps[0].num_tool_calls == 2
+    assert trace.steps[0].tool_results[0].is_error is True
+    assert trace.steps[0].tool_results[1].is_error is False
+
+
+def test_harness_rejects_empty_query(tmp_path: Path, settings: Settings) -> None:
+    harness = _make_harness(tmp_path, settings, turns=[])
+    with pytest.raises(ValueError, match="empty"):
+        harness.run("   ")
