@@ -281,7 +281,7 @@ def stats() -> None:
 def list_tools() -> None:
     """List tools available to the video QA agent harness."""
     settings = get_settings()
-    from latentlens.agent import GetAdjacentClipsTool, SearchMomentsTool, ToolRegistry
+    from latentlens.agent import ToolRegistry, build_default_registry
     from latentlens.encoders import SentenceTransformerTextEncoder
     from latentlens.index import CaptionStore
     from latentlens.pipeline import SearchService
@@ -303,8 +303,7 @@ def list_tools() -> None:
             text_encoder=text_encoder,
             captions=captions,
         )
-        registry.register(SearchMomentsTool(service))
-        registry.register(GetAdjacentClipsTool(store, captions))
+        registry = build_default_registry(service, store, captions)
 
     table = Table(title="Agent Harness Tools", header_style="bold green")
     table.add_column("Tool Name", style="bold")
@@ -319,6 +318,66 @@ def list_tools() -> None:
         table.add_row(tool.definition.name, param_desc, tool.definition.description)
 
     console.print(table if len(registry) else "[yellow]No index loaded. Ingest videos first.[/]")
+
+
+@app.command()
+def ask(
+    question: Annotated[str, typer.Argument(help="Question to ask about the indexed videos.")],
+    max_steps: Annotated[
+        int | None,
+        typer.Option("--max-steps", min=1, le=20, help="Override agent step budget."),
+    ] = None,
+) -> None:
+    """Ask a natural-language question over indexed videos using the agent harness."""
+    settings = get_settings()
+    from latentlens.agent import (
+        GeminiAgentModel,
+        HarnessConfig,
+        VideoAgentHarness,
+        build_default_registry,
+    )
+    from latentlens.encoders import SentenceTransformerTextEncoder
+    from latentlens.index import CaptionStore
+    from latentlens.llm import RateLimiter
+    from latentlens.pipeline import SearchService
+
+    if not (settings.index_dir / "metadata.json").exists():
+        console.print("[yellow]Index is empty — run `latentlens ingest` first.[/]")
+        raise typer.Exit(1)
+
+    api_key = settings.require_gemini_key()
+    encoder, store = _load_components(settings)
+    captions = (
+        CaptionStore.load(settings.captions_path) if settings.captions_path.exists() else None
+    )
+    text_encoder = SentenceTransformerTextEncoder(settings.text_model_id, device=settings.device)
+    service = SearchService(
+        encoder=encoder,
+        store=store,
+        settings=settings,
+        text_encoder=text_encoder,
+        captions=captions,
+    )
+    registry = build_default_registry(service, store, captions)
+    limiter = RateLimiter.per_minute(settings.gemini_rpm)
+    model = GeminiAgentModel(api_key=api_key, model=settings.gemini_model, limiter=limiter)
+    config = HarnessConfig(
+        max_steps=max_steps or settings.agent_max_steps,
+        max_tool_calls_per_step=settings.agent_max_tool_calls,
+    )
+    harness = VideoAgentHarness(model=model, registry=registry, config=config)
+
+    with console.status("Agent reasoning over video memory..."):
+        answer, trace = harness.run(question)
+
+    console.print(f"\n[bold cyan]Answer:[/]\n{answer.answer}\n")
+    if answer.citations:
+        cit_lines = ", ".join(f"[{c.video_id} @ {c.label()}]" for c in answer.citations)
+        console.print(f"[bold green]Verified Citations:[/] {cit_lines}")
+    console.print(
+        f"[dim]Trace: {trace.total_steps} step(s), {trace.total_tool_calls} tool call(s), "
+        f"{trace.total_elapsed_ms:.0f}ms ({trace.termination_reason})[/]"
+    )
 
 
 @app.command()
