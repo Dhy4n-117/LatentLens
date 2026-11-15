@@ -67,6 +67,10 @@ latentlens caption --limit 20
 # 4. Search by natural language query or by visual moment
 latentlens search --text "person chopping vegetables" -k 5
 latentlens search path/to/videos/cooking.mp4 --at 42 -k 5
+
+# 5. Ask multi-step questions with the agent harness (Stage 2)
+latentlens tools
+latentlens ask "Where did the person place the blue backpack after entering the kitchen?"
 ```
 
 Configure the tool through environment variables or `.env` (see [.env.example](.env.example)).
