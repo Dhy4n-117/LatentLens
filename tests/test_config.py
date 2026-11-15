@@ -30,7 +30,6 @@ def test_derived_directories(tmp_path: Path) -> None:
     assert settings.projection_head_path == tmp_path / "projection_head.pt"
 
 
-
 def test_reads_standard_gemini_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GEMINI_API_KEY", "secret-123")
     settings = _settings()
@@ -45,3 +44,14 @@ def test_missing_gemini_key_fails_with_guidance(monkeypatch: pytest.MonkeyPatch)
 
     with pytest.raises(RuntimeError, match=r"aistudio\.google\.com"):
         _settings().require_gemini_key()
+
+
+def test_agent_harness_budget_settings_and_bounds() -> None:
+    s = _settings()
+    assert s.agent_max_steps == 6
+    assert s.agent_max_tool_calls == 4
+
+    with pytest.raises(ValidationError):
+        _settings(agent_max_steps=0)
+    with pytest.raises(ValidationError):
+        _settings(agent_max_tool_calls=99)

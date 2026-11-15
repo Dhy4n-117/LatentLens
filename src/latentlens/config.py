@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     keyframes_per_clip: int = Field(default=3, ge=1, le=8)
     text_model_id: str = "all-MiniLM-L6-v2"
 
+    # Agent Harness (Stage 2)
+    agent_max_steps: int = Field(default=6, ge=1, le=20)
+    agent_max_tool_calls: int = Field(default=4, ge=1, le=10)
+
     @field_validator("frames_per_clip")
     @classmethod
     def _even_frames(cls, value: int) -> int:
