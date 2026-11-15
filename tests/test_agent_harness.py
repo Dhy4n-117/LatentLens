@@ -185,3 +185,18 @@ def test_harness_rejects_empty_query(tmp_path: Path, settings: Settings) -> None
     harness = _make_harness(tmp_path, settings, turns=[])
     with pytest.raises(ValueError, match="empty"):
         harness.run("   ")
+
+
+def test_harness_guards_against_duplicate_tool_calls(tmp_path: Path, settings: Settings) -> None:
+    dup_call = ToolCall(name="search_moments", arguments={"query": "backpack", "top_k": 2})
+    turns = [
+        ModelTurn(tool_calls=(dup_call,)),
+        ModelTurn(tool_calls=(dup_call,)),
+        ModelTurn(text="Done at [kitchen @ 00:00.0–00:04.0]."),
+    ]
+    harness = _make_harness(tmp_path, settings, turns=turns)
+    answer, trace = harness.run("Check duplicate guard")
+    assert trace.steps[0].tool_results[0].is_error is False
+    assert trace.steps[1].tool_results[0].is_error is True
+    assert "Duplicate call" in str(trace.steps[1].tool_results[0].output)
+    assert len(answer.citations) == 1

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 
 from latentlens.agent.citations import verify_citations
@@ -47,6 +48,7 @@ class VideoAgentHarness:
         steps: list[AgentStep] = []
         discovered_spans: list[ClipSpan] = []
         discovered_hits: list[SearchHit] = []
+        seen_calls: set[tuple[str, str]] = set()
 
         for step_idx in range(self._config.max_steps):
             step_start = time.perf_counter()
@@ -90,9 +92,24 @@ class VideoAgentHarness:
             step_results: list[ToolResult] = []
 
             for call in bounded_calls:
-                result = self._registry.dispatch(call.name, dict(call.arguments))
+                sig = (
+                    call.name,
+                    json.dumps(call.arguments, sort_keys=True, default=str),
+                )
+                if sig in seen_calls:
+                    result = ToolResult(
+                        tool_name=call.name,
+                        output=(
+                            f"Duplicate call to '{call.name}' with identical arguments "
+                            "skipped; use the previous observation or refine arguments."
+                        ),
+                        is_error=True,
+                    )
+                else:
+                    seen_calls.add(sig)
+                    result = self._registry.dispatch(call.name, dict(call.arguments))
+                    _collect_evidence(result, discovered_spans, discovered_hits)
                 step_results.append(result)
-                _collect_evidence(result, discovered_spans, discovered_hits)
                 rendered = format_observation(
                     result,
                     max_chars=self._config.max_observation_chars,
