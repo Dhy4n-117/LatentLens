@@ -50,8 +50,15 @@ def test_agent_harness_budget_settings_and_bounds() -> None:
     s = _settings()
     assert s.agent_max_steps == 6
     assert s.agent_max_tool_calls == 4
+    assert s.qa_min_score == pytest.approx(0.05)
+    assert s.web_host == "127.0.0.1"
+    assert s.web_port == 8000
 
     with pytest.raises(ValidationError):
         _settings(agent_max_steps=0)
     with pytest.raises(ValidationError):
         _settings(agent_max_tool_calls=99)
+    with pytest.raises(ValidationError):
+        _settings(qa_min_score=1.5)
+    with pytest.raises(ValidationError):
+        _settings(web_port=70000)
