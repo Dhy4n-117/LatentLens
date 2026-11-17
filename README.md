@@ -3,7 +3,7 @@
 **Video Q&A over the real world**: [V-JEPA 2](https://ai.meta.com/vjepa/) provides the visual memory and Gemini handles the language reasoning.
 Every part of the stack is free: open-weight models, open-source libraries, and the Gemini free tier.
 
-> **Status:** Phase 1 (Visual memory core) and Phase 2 (Language bridge) are complete: free-tier plumbing, Gemini captioning pipeline, local text embeddings (`sentence-transformers`), text-based clip search, latent projection alignment, and Reciprocal Rank Fusion are done. See [ROADMAP.md](ROADMAP.md).
+> **Status:** Phase 1 (Visual memory core), Phase 2 (Language bridge), and Phase 3 (Grounded video QA + Agent Harness + Web UI) are complete. See [ROADMAP.md](ROADMAP.md).
 
 ## Why V-JEPA?
 V-JEPA learns by predicting *masked regions in latent space* instead of reconstructing pixels.
@@ -71,6 +71,9 @@ latentlens search path/to/videos/cooking.mp4 --at 42 -k 5
 # 5. Ask multi-step questions with the agent harness (Stage 2)
 latentlens tools
 latentlens ask "Where did the person place the blue backpack after entering the kitchen?"
+
+# 6. Launch the interactive Web UI + REST API with timestamped clip playback (Phase 3)
+latentlens serve --port 8000
 ```
 
 Configure the tool through environment variables or `.env` (see [.env.example](.env.example)).

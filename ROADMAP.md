@@ -14,7 +14,7 @@ flowchart LR
 |------|-------|--------|
 | 1 | Visual memory core | ✅ Done |
 | 2 | Language bridge | ✅ Done |
-| 3 | Grounded video QA + UI | 🚧 In progress |
+| 3 | Grounded video QA + UI | ✅ Done |
 | 4 | Evaluation & production | 🔜 |
 
 ---
@@ -52,7 +52,7 @@ Goal: let *text* reach the V-JEPA latent space (V-JEPA has no text tower).
 - [x] Hybrid retrieval via Reciprocal Rank Fusion (`reciprocal_rank_fusion` and `SearchService.hybrid_search`)
 
 
-## Phase 3 — Grounded Video QA + UI 🚧
+## Phase 3 — Grounded Video QA + UI ✅
 Goal: ask questions, get answers with timestamp citations.
 
 - [x] Grounded QA domain contracts (`GroundedAnswer`)
@@ -61,8 +61,9 @@ Goal: ask questions, get answers with timestamp citations.
 - [x] Core agent tools: `SearchMomentsTool`, `GetAdjacentClipsTool`, `InspectClipTool`, `ListVideosTool`, and CLI `latentlens tools`
 - [x] Agent harness execution loop (`VideoAgentHarness`, `GeminiAgentModel`, `AgentTrace`) with step budgeting, duplicate-call guards, and function calling
 - [x] Citation parser & span verifier (`[video @ MM:SS.s–MM:SS.s]`) + `latentlens ask` CLI command
-- [ ] Multi-turn conversation memory, query rewriting
-- [ ] FastAPI backend + Gradio front-end with clip playback at cited timestamps
+- [x] Grounded QA pipeline (`GroundedQAPipeline`, `GeminiQAReasoner`) with weak-evidence refusal (`WEAK_EVIDENCE_REFUSAL`)
+- [x] Multi-turn conversation memory (`ConversationMemory`) and contextual query rewriting (`HeuristicQueryRewriter`, `LLMQueryRewriter`)
+- [x] Web API + interactive HTML5 UI (`LatentLensWebApp`, `WebController`, `latentlens serve`) with clip playback at cited timestamps
 
 ## Phase 4 — Evaluation & Production
 Goal: prove it works and ship it.
