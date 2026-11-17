@@ -381,6 +381,85 @@ def ask(
 
 
 @app.command()
+def serve(
+    host: Annotated[str | None, typer.Option("--host", help="Bind host address.")] = None,
+    port: Annotated[
+        int | None, typer.Option("--port", "-p", min=1, le=65535, help="Bind port.")
+    ] = None,
+) -> None:
+    """Launch the interactive LatentLens Web UI and REST API server."""
+    settings = get_settings()
+    from latentlens.agent import (
+        ConversationMemory,
+        GeminiAgentModel,
+        HarnessConfig,
+        HeuristicQueryRewriter,
+        VideoAgentHarness,
+        build_default_registry,
+    )
+    from latentlens.encoders import SentenceTransformerTextEncoder
+    from latentlens.index import CaptionStore
+    from latentlens.llm import GeminiQAReasoner, RateLimiter, ResponseCache
+    from latentlens.pipeline import GroundedQAPipeline, SearchService
+    from latentlens.web import LatentLensWebApp, WebController
+
+    encoder, store = _load_components(settings)
+    captions = (
+        CaptionStore.load(settings.captions_path) if settings.captions_path.exists() else None
+    )
+    text_encoder = SentenceTransformerTextEncoder(settings.text_model_id, device=settings.device)
+    service = SearchService(
+        encoder=encoder,
+        store=store,
+        settings=settings,
+        text_encoder=text_encoder,
+        captions=captions,
+    )
+
+    qa_pipeline = None
+    harness = None
+    if settings.gemini_api_key and settings.gemini_api_key.get_secret_value():
+        api_key = settings.require_gemini_key()
+        limiter = RateLimiter.per_minute(settings.gemini_rpm)
+        cache = ResponseCache(settings.cache_dir)
+        reasoner = GeminiQAReasoner(
+            api_key=api_key,
+            model=settings.gemini_model,
+            limiter=limiter,
+            cache=cache,
+        )
+        qa_pipeline = GroundedQAPipeline(
+            service,
+            reasoner,
+            min_score=settings.qa_min_score,
+        )
+        model = GeminiAgentModel(api_key=api_key, model=settings.gemini_model, limiter=limiter)
+        harness = VideoAgentHarness(
+            model=model,
+            registry=build_default_registry(service, store, captions),
+            config=HarnessConfig(
+                max_steps=settings.agent_max_steps,
+                max_tool_calls_per_step=settings.agent_max_tool_calls,
+            ),
+            memory=ConversationMemory(),
+            rewriter=HeuristicQueryRewriter(),
+        )
+
+    controller = WebController(
+        store=store,
+        captions=captions,
+        search_service=service,
+        qa_pipeline=qa_pipeline,
+        agent_harness=harness,
+    )
+    web_app = LatentLensWebApp(controller)
+    bind_host = host or settings.web_host
+    bind_port = port or settings.web_port
+    console.print(f"[bold green]LatentLens Web UI running at[/] http://{bind_host}:{bind_port}")
+    web_app.serve_forever(host=bind_host, port=bind_port)
+
+
+@app.command()
 def remove(
     video_id: Annotated[str, typer.Argument(help="ID shown by `latentlens stats`.")],
 ) -> None:

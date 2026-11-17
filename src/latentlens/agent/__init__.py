@@ -9,6 +9,7 @@ from latentlens.agent.citations import (
 from latentlens.agent.config import HarnessConfig
 from latentlens.agent.gemini import AgentModelError, GeminiAgentModel
 from latentlens.agent.harness import VideoAgentHarness
+from latentlens.agent.memory import ConversationMemory, ConversationTurn
 from latentlens.agent.model import AgentModel, Message, ModelTurn, Role, ToolCall
 from latentlens.agent.observation import format_observation, format_tool_response_dict
 from latentlens.agent.prompts import (
@@ -17,6 +18,12 @@ from latentlens.agent.prompts import (
     build_synthesis_prompt,
 )
 from latentlens.agent.registry import ToolRegistry
+from latentlens.agent.rewriter import (
+    REWRITE_SYSTEM_PROMPT,
+    HeuristicQueryRewriter,
+    LLMQueryRewriter,
+    QueryRewriter,
+)
 from latentlens.agent.tools import (
     GetAdjacentClipsTool,
     InspectClipTool,
@@ -30,19 +37,25 @@ from latentlens.agent.types import AgentTool, ToolDefinition, ToolParameter, Too
 __all__ = [
     "AGENT_SYSTEM_PROMPT",
     "BUDGET_SYNTHESIS_INSTRUCTION",
+    "REWRITE_SYSTEM_PROMPT",
     "AgentModel",
     "AgentModelError",
     "AgentStep",
     "AgentTool",
     "AgentTrace",
+    "ConversationMemory",
+    "ConversationTurn",
     "GeminiAgentModel",
     "GetAdjacentClipsTool",
     "HarnessConfig",
+    "HeuristicQueryRewriter",
     "InspectClipTool",
+    "LLMQueryRewriter",
     "ListVideosTool",
     "Message",
     "ModelTurn",
     "ParsedCitation",
+    "QueryRewriter",
     "Role",
     "SearchMomentsTool",
     "TerminationReason",
