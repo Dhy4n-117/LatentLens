@@ -10,7 +10,9 @@ import pytest
 
 from latentlens.agent.config import HarnessConfig
 from latentlens.agent.harness import VideoAgentHarness
+from latentlens.agent.memory import ConversationMemory
 from latentlens.agent.model import Message, ModelTurn, ToolCall
+from latentlens.agent.rewriter import HeuristicQueryRewriter
 from latentlens.agent.tools import build_default_registry
 from latentlens.agent.types import ToolDefinition
 from latentlens.config import Settings
@@ -200,3 +202,46 @@ def test_harness_guards_against_duplicate_tool_calls(tmp_path: Path, settings: S
     assert trace.steps[1].tool_results[0].is_error is True
     assert "Duplicate call" in str(trace.steps[1].tool_results[0].output)
     assert len(answer.citations) == 1
+
+
+def test_harness_integrates_memory_and_query_rewriter(tmp_path: Path, settings: Settings) -> None:
+    store = VectorStore(dim=3, encoder_name="fake")
+    s1 = ClipSpan("kitchen", "/videos/kitchen.mp4", 0.0, 4.0)
+    store.add([s1], np.ones((1, 3), dtype=np.float32))
+    captions = CaptionStore(tmp_path / "captions.json")
+    captions.add(s1, "Person puts blue backpack on chair", "m")
+    service = SearchService(
+        encoder=ColorEncoder(),
+        store=store,
+        settings=settings,
+        text_encoder=FakeTextEncoder(),
+        captions=captions,
+    )
+    registry = build_default_registry(service, store, captions)
+    model = ScriptedAgentModel(
+        [
+            ModelTurn(
+                tool_calls=(
+                    ToolCall(name="search_moments", arguments={"query": "backpack", "top_k": 1}),
+                )
+            ),
+            ModelTurn(text="It is on the chair at [kitchen @ 00:00.0–00:04.0]."),
+            ModelTurn(text="Follow-up answered at [kitchen @ 00:00.0–00:04.0]."),
+        ]
+    )
+    memory = ConversationMemory()
+    harness = VideoAgentHarness(
+        model=model,
+        registry=registry,
+        memory=memory,
+        rewriter=HeuristicQueryRewriter(),
+    )
+
+    harness.run("Where did the blue backpack go?")
+    assert len(memory) == 1
+    assert memory.last_turn is not None
+    assert len(memory.last_turn.citations) == 1
+
+    harness.run("What color is it?")
+    assert len(memory) == 2
+    assert "context: Where did the blue backpack go?" in memory.last_turn.rewritten_query

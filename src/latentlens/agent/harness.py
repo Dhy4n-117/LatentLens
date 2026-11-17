@@ -7,10 +7,12 @@ import time
 
 from latentlens.agent.citations import verify_citations
 from latentlens.agent.config import HarnessConfig
+from latentlens.agent.memory import ConversationMemory
 from latentlens.agent.model import AgentModel, Message, ToolCall
 from latentlens.agent.observation import format_observation
 from latentlens.agent.prompts import AGENT_SYSTEM_PROMPT, build_synthesis_prompt
 from latentlens.agent.registry import ToolRegistry
+from latentlens.agent.rewriter import QueryRewriter
 from latentlens.agent.trace import AgentStep, AgentTrace
 from latentlens.agent.types import ToolResult
 from latentlens.types import ClipSpan, GroundedAnswer, SearchHit
@@ -25,15 +27,23 @@ class VideoAgentHarness:
         registry: ToolRegistry,
         config: HarnessConfig | None = None,
         system_prompt: str = AGENT_SYSTEM_PROMPT,
+        memory: ConversationMemory | None = None,
+        rewriter: QueryRewriter | None = None,
     ) -> None:
         self._model = model
         self._registry = registry
         self._config = config or HarnessConfig()
         self._system_prompt = system_prompt
+        self._memory = memory
+        self._rewriter = rewriter
 
     @property
     def config(self) -> HarnessConfig:
         return self._config
+
+    @property
+    def memory(self) -> ConversationMemory | None:
+        return self._memory
 
     def run(self, query: str) -> tuple[GroundedAnswer, AgentTrace]:
         """Execute the agent reasoning loop for ``query`` and return answer + trace."""
@@ -41,8 +51,12 @@ class VideoAgentHarness:
         if not cleaned_query:
             raise ValueError("Query must not be empty")
 
+        effective_query = cleaned_query
+        if self._memory is not None and self._rewriter is not None and len(self._memory) > 0:
+            effective_query = self._rewriter.rewrite(cleaned_query, self._memory)
+
         run_start = time.perf_counter()
-        messages: list[Message] = [Message.user(cleaned_query)]
+        messages: list[Message] = [Message.user(effective_query)]
         tool_defs = self._registry.get_definitions()
 
         steps: list[AgentStep] = []
@@ -71,6 +85,13 @@ class VideoAgentHarness:
                 )
                 total_ms = (time.perf_counter() - run_start) * 1000.0
                 citations = verify_citations(answer_text, discovered_spans)
+                if self._memory is not None:
+                    self._memory.add(
+                        cleaned_query,
+                        answer_text,
+                        rewritten_query=effective_query,
+                        citations=citations,
+                    )
                 return (
                     GroundedAnswer(
                         query=cleaned_query,
@@ -146,6 +167,13 @@ class VideoAgentHarness:
         )
         total_ms = (time.perf_counter() - run_start) * 1000.0
         citations = verify_citations(final_text, discovered_spans)
+        if self._memory is not None:
+            self._memory.add(
+                cleaned_query,
+                final_text,
+                rewritten_query=effective_query,
+                citations=citations,
+            )
         return (
             GroundedAnswer(
                 query=cleaned_query,
